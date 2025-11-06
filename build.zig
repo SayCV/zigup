@@ -3,7 +3,7 @@ const builtin = @import("builtin");
 
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
-    const optimize = b.standardOptimizeOption(.{ .preferred_optimize_mode = .ReleaseSafe });
+    const optimize = b.standardOptimizeOption(.{});
 
     const zigup_exe_native = blk: {
         const exe = addZigupExe(b, target, optimize);
@@ -104,7 +104,7 @@ fn addZigupExe(
             .root_source_file = b.path("zigup.zig"),
             .target = target,
             .optimize = optimize,
-            .strip = true,
+            //.strip = true,
         }),
     });
 

@@ -7,6 +7,13 @@ const Allocator = mem.Allocator;
 
 const fixdeletetree = @import("fixdeletetree.zig");
 
+pub const std_options: std.Options = .{
+    // The comptime log_level. This needs to be debug - otherwise messages are compiled out.
+    // The runtime filtering is handled by default_log_level_runtime.
+    .log_level = .debug,
+};
+const log = std.log.scoped(.zigup);
+
 const arch = switch (builtin.cpu.arch) {
     .aarch64 => "aarch64",
     .arm => "armv7a",
