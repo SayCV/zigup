@@ -20,7 +20,7 @@ pub fn deleteTree(dir: std.fs.Dir, sub_path: []const u8) !void {
             switch (err) {
                 error.FileBusy => {
                     std.log.warn("path '{s}' is busy (attempt {}), will retry", .{ sub_path, attempt });
-                    std.time.sleep(std.time.ns_per_ms * 100); // sleep for 100 ms
+                    std.Thread.sleep(std.time.ns_per_ms * 100); // sleep for 100 ms
                 },
                 else => |e| return e,
             }

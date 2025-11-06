@@ -19,6 +19,10 @@ const global = struct {
 };
 
 pub fn main() !u8 {
+    var stdout_writer = std.fs.File.stdout().writerStreaming(&.{});
+    var stdout = &stdout_writer.interface;
+    defer stdout.flush() catch {};
+
     // Sanity check that the exe_marker_len is right (note: not fullproof)
     std.debug.assert(zig_exe_string[exe_marker_len - 1] == '#');
     if (zig_exe_string[exe_marker_len] == 0) {
@@ -37,7 +41,7 @@ pub fn main() !u8 {
 
     const args = try std.process.argsAlloc(global.arena);
     if (args.len >= 2 and std.mem.eql(u8, args[1], "exelink")) {
-        try std.io.getStdOut().writer().writeAll(zig_exe);
+        try stdout.writeAll(zig_exe);
         return 0;
     }
     args[0] = zig_exe;
@@ -59,7 +63,7 @@ pub fn main() !u8 {
     };
 }
 
-fn consoleCtrlHandler(ctrl_type: u32) callconv(@import("std").os.windows.WINAPI) win32.BOOL {
+fn consoleCtrlHandler(ctrl_type: u32) callconv(.winapi) win32.BOOL {
     //
     // NOTE: Do I need to synchronize this with the main thread?
     //
@@ -97,13 +101,13 @@ const win32 = struct {
     pub const PHANDLER_ROUTINE = switch (builtin.zig_backend) {
         .stage1 => fn (
             CtrlType: u32,
-        ) callconv(@import("std").os.windows.WINAPI) BOOL,
+        ) callconv(.winapi) BOOL,
         else => *const fn (
             CtrlType: u32,
-        ) callconv(@import("std").os.windows.WINAPI) BOOL,
+        ) callconv(.winapi) BOOL,
     };
     pub extern "kernel32" fn SetConsoleCtrlHandler(
         HandlerRoutine: ?PHANDLER_ROUTINE,
         Add: BOOL,
-    ) callconv(@import("std").os.windows.WINAPI) BOOL;
+    ) callconv(.winapi) BOOL;
 };
