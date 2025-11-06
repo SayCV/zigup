@@ -1181,15 +1181,14 @@ const SemanticVersion = struct {
     pre: ?std.ArrayListUnmanaged(u8),
     build: ?std.ArrayListUnmanaged(u8),
 
-    pub fn array(self: *const SemanticVersion) std.ArrayListUnmanaged(u8) {
-        const allocator = std.heap.page_allocator;
-        var result: std.ArrayListUnmanaged(u8) = undefined;
+    pub fn array(self: *const SemanticVersion, allocator: Allocator) std.ArrayListUnmanaged(u8) {
+        var result: std.ArrayListUnmanaged(u8) = .empty;
         errdefer result.deinit(allocator);
-        std.fmt.format(result.writer(allocator), "{f}", .{self}) catch unreachable;
+        result.writer(allocator).print("{f}", .{self}) catch unreachable;
         return result;
     }
 
-    pub fn parse(s: []const u8) ?SemanticVersion {
+    pub fn parse(allocator: Allocator, s: []const u8) ?SemanticVersion {
         const parsed = std.SemanticVersion.parse(s) catch |e| switch (e) {
             error.Overflow, error.InvalidVersion => return null,
         };
@@ -1199,15 +1198,19 @@ const SemanticVersion = struct {
             .major = parsed.major,
             .minor = parsed.minor,
             .patch = parsed.patch,
-            .pre = if (parsed.pre) |pre| std.ArrayListUnmanaged(u8).initBuffer(@constCast(pre)) else null,
-            .build = if (parsed.build) |build| std.ArrayListUnmanaged(u8).initBuffer(@constCast(build)) else null,
+            .pre = if (parsed.pre) |pre| std.ArrayListUnmanaged(u8).initCapacity(allocator, pre.len) catch |e| switch (e) {
+                error.OutOfMemory => std.debug.panic("semantic version pre '{s}' is too long (max is {})", .{ pre, max_pre }),
+            } else null,
+            .build = if (parsed.build) |build| std.ArrayListUnmanaged(u8).initCapacity(allocator, build.len) catch |e| switch (e) {
+                error.OutOfMemory => std.debug.panic("semantic version build '{s}' is too long (max is {})", .{ build, max_build }),
+            } else null,
         };
         if (parsed.pre) |pre| @memcpy(result.pre.?.items, pre);
         if (parsed.build) |build| @memcpy(result.build.?.items, build);
 
         {
             // sanity check, ensure format gives us the same string back we just parsed
-            const roundtrip = result.array();
+            const roundtrip = result.array(allocator);
             if (!std.mem.eql(u8, roundtrip.items, s)) std.debug.panic(
                 "codebug parse/format version mismatch:\nparsed: '{s}'\nformat: '{s}'\n",
                 .{ s, roundtrip.items },
@@ -1234,7 +1237,7 @@ const SemanticVersion = struct {
 };
 
 fn getDefaultUrl(allocator: Allocator, compiler_version: []const u8) ![]const u8 {
-    const sv = SemanticVersion.parse(compiler_version) orelse errExit(
+    const sv = SemanticVersion.parse(allocator, compiler_version) orelse errExit(
         "invalid zig version '{s}', unable to create a download URL for it",
         .{compiler_version},
     );
